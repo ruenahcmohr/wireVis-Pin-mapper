@@ -1,0 +1,7 @@
+connectors:
+  J1:
+    pinlabels: ["18Vin", "18Vin", "GND", "GND"]
+    notes: "pos=(745,802) rot=0deg"
+  J2:
+    pinlabels: ["GND", "GND", "MainOut", "MotOut"]
+    notes: "pos=(1333,504) rot=-91.37deg"

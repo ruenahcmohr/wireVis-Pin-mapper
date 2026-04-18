@@ -1,0 +1,1158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WireVis Connector Mapper</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&family=VT323&display=swap');
+
+  :root {
+    --bg: #0a0d0a;
+    --bg2: #0e120e;
+    --bg3: #111811;
+    --panel: #131a13;
+    --panel2: #182018;
+    --border: #1e3a1e;
+    --border2: #2a4a2a;
+    --green: #00ff41;
+    --green2: #00cc33;
+    --green3: #009922;
+    --green-dim: #004d14;
+    --green-faint: #001a07;
+    --amber: #ffaa00;
+    --red: #ff2244;
+    --cyan: #00ffcc;
+    --text: #b0ffb0;
+    --text2: #70cc70;
+    --text3: #3a7a3a;
+    --shadow-green: 0 0 8px rgba(0,255,65,0.4);
+    --shadow-green2: 0 0 20px rgba(0,255,65,0.2);
+    --mono: 'Share Tech Mono', monospace;
+    --display: 'Orbitron', monospace;
+    --vt: 'VT323', monospace;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 13px;
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Scanline overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.08) 2px,
+      rgba(0,0,0,0.08) 4px
+    );
+    pointer-events: none;
+    z-index: 9999;
+  }
+
+  /* ─── HEADER ─── */
+  #header {
+    background: var(--panel);
+    border-bottom: 2px solid var(--green3);
+    padding: 6px 16px;
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    flex-shrink: 0;
+    box-shadow: var(--shadow-green2);
+  }
+  #header h1 {
+    font-family: var(--display);
+    font-size: 14px;
+    font-weight: 900;
+    color: var(--green);
+    letter-spacing: 4px;
+    text-shadow: var(--shadow-green);
+    white-space: nowrap;
+  }
+  #header .sub {
+    font-size: 10px;
+    color: var(--text3);
+    letter-spacing: 2px;
+  }
+  .hbtn {
+    background: transparent;
+    border: 1px solid var(--green3);
+    color: var(--green2);
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 4px 12px;
+    cursor: pointer;
+    letter-spacing: 1px;
+    transition: all 0.15s;
+    text-transform: uppercase;
+  }
+  .hbtn:hover {
+    background: var(--green-dim);
+    border-color: var(--green);
+    color: var(--green);
+    box-shadow: var(--shadow-green);
+  }
+  .hbtn.primary {
+    border-color: var(--green2);
+    color: var(--green);
+    background: var(--green-faint);
+  }
+  .hbtn.amber { border-color: #664400; color: var(--amber); }
+  .hbtn.amber:hover { background: #332200; border-color: var(--amber); box-shadow: 0 0 8px rgba(255,170,0,0.4); }
+  .hbtn.red { border-color: #660011; color: var(--red); }
+  .hbtn.red:hover { background: #330008; border-color: var(--red); box-shadow: 0 0 8px rgba(255,34,68,0.4); }
+
+  #upload-btn-label {
+    background: var(--green-faint);
+    border: 1px solid var(--green3);
+    color: var(--green2);
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 4px 12px;
+    cursor: pointer;
+    letter-spacing: 1px;
+    transition: all 0.15s;
+    text-transform: uppercase;
+  }
+  #upload-btn-label:hover {
+    background: var(--green-dim);
+    border-color: var(--green);
+    color: var(--green);
+    box-shadow: var(--shadow-green);
+  }
+
+  .spacer { flex: 1; }
+
+  /* ─── MAIN LAYOUT ─── */
+  #main {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  /* ─── LEFT PANEL ─── */
+  #left-panel {
+    width: 260px;
+    min-width: 200px;
+    background: var(--panel);
+    border-right: 2px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+  .panel-header {
+    background: var(--panel2);
+    border-bottom: 1px solid var(--border);
+    padding: 6px 10px;
+    font-family: var(--display);
+    font-size: 9px;
+    letter-spacing: 3px;
+    color: var(--green3);
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .panel-header .dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--green);
+    box-shadow: var(--shadow-green);
+    animation: blink 2s infinite;
+  }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  /* Add connector form */
+  #add-form {
+    padding: 10px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .field-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .field-label {
+    color: var(--text3);
+    font-size: 10px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    min-width: 56px;
+  }
+  .field-input {
+    flex: 1;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    color: var(--green);
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 3px 6px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .field-input:focus { border-color: var(--green3); box-shadow: var(--shadow-green); }
+  .spinner-input {
+    width: 56px;
+    text-align: center;
+  }
+
+  #pin-labels-area {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    max-height: 130px;
+    overflow-y: auto;
+    padding: 2px 0;
+  }
+  #pin-labels-area::-webkit-scrollbar { width: 4px; }
+  #pin-labels-area::-webkit-scrollbar-track { background: var(--bg); }
+  #pin-labels-area::-webkit-scrollbar-thumb { background: var(--green3); }
+  .pin-label-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .pin-num {
+    color: var(--text3);
+    font-size: 10px;
+    min-width: 20px;
+    text-align: right;
+  }
+  .pin-label-input {
+    flex: 1;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--green2);
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 2px 5px;
+    outline: none;
+  }
+  .pin-label-input:focus { border-color: var(--green3); }
+
+  #add-connector-btn {
+    background: var(--green-faint);
+    border: 1px solid var(--green3);
+    color: var(--green);
+    font-family: var(--display);
+    font-size: 10px;
+    padding: 6px;
+    cursor: pointer;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    transition: all 0.15s;
+  }
+  #add-connector-btn:hover {
+    background: var(--green-dim);
+    box-shadow: var(--shadow-green);
+  }
+
+  /* Connector list */
+  #connector-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  #connector-list::-webkit-scrollbar { width: 4px; }
+  #connector-list::-webkit-scrollbar-track { background: var(--bg); }
+  #connector-list::-webkit-scrollbar-thumb { background: var(--green3); }
+
+  .conn-item {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    padding: 5px 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    transition: all 0.1s;
+    gap: 6px;
+  }
+  .conn-item:hover { border-color: var(--green3); background: var(--green-faint); }
+  .conn-item.selected { border-color: var(--green); background: var(--green-faint); box-shadow: var(--shadow-green); }
+  .conn-item-name { color: var(--green); font-size: 12px; flex: 1; }
+  .conn-item-pins { color: var(--text3); font-size: 10px; }
+  .conn-del {
+    background: none; border: none; color: var(--red); cursor: pointer; font-size: 14px;
+    opacity: 0.5; transition: opacity 0.15s; padding: 0 2px;
+  }
+  .conn-del:hover { opacity: 1; }
+
+  /* ─── CANVAS AREA ─── */
+  #canvas-wrap {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    background: #070907;
+    background-image:
+      linear-gradient(rgba(0,255,65,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,255,65,0.03) 1px, transparent 1px);
+    background-size: 20px 20px;
+  }
+  #canvas-area {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+  }
+  #image-canvas { position: absolute; top: 0; left: 0; }
+  #overlay-canvas { position: absolute; top: 0; left: 0; cursor: crosshair; }
+
+  #drop-zone {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    pointer-events: none;
+  }
+  #drop-zone .dz-icon {
+    font-family: var(--vt);
+    font-size: 72px;
+    color: var(--green-dim);
+    text-shadow: var(--shadow-green);
+  }
+  #drop-zone .dz-text {
+    font-family: var(--display);
+    font-size: 11px;
+    letter-spacing: 4px;
+    color: var(--text3);
+  }
+
+  /* ─── RIGHT PANEL ─── */
+  #right-panel {
+    width: 300px;
+    min-width: 220px;
+    background: var(--panel);
+    border-left: 2px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+  #wirevis-output {
+    flex: 1;
+    background: var(--bg);
+    border: none;
+    color: var(--green2);
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 10px;
+    resize: none;
+    outline: none;
+    line-height: 1.5;
+    overflow-y: auto;
+  }
+  #wirevis-output::-webkit-scrollbar { width: 4px; }
+  #wirevis-output::-webkit-scrollbar-track { background: var(--bg); }
+  #wirevis-output::-webkit-scrollbar-thumb { background: var(--green3); }
+
+  /* ─── STATUS BAR ─── */
+  #status-bar {
+    background: var(--panel2);
+    border-top: 1px solid var(--border);
+    padding: 3px 12px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-shrink: 0;
+    font-size: 10px;
+    color: var(--text3);
+    letter-spacing: 1px;
+  }
+  #status-bar .status-val { color: var(--green2); }
+  #status-bar .sep { color: var(--border2); }
+
+  /* ─── EDIT MODAL ─── */
+  #edit-modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.8);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+  }
+  #edit-modal.show { display: flex; }
+  #edit-modal-inner {
+    background: var(--panel);
+    border: 2px solid var(--green3);
+    box-shadow: var(--shadow-green2), 0 0 60px rgba(0,255,65,0.1);
+    padding: 20px;
+    width: 360px;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  #edit-modal h2 {
+    font-family: var(--display);
+    font-size: 11px;
+    letter-spacing: 3px;
+    color: var(--green);
+    text-shadow: var(--shadow-green);
+  }
+  #edit-pin-labels {
+    overflow-y: auto;
+    max-height: 300px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding-right: 4px;
+  }
+  #edit-pin-labels::-webkit-scrollbar { width: 4px; }
+  #edit-pin-labels::-webkit-scrollbar-thumb { background: var(--green3); }
+  .modal-btn-row { display: flex; gap: 8px; justify-content: flex-end; }
+
+  /* ─── TOOLTIP ─── */
+  #tooltip {
+    position: fixed;
+    background: var(--panel2);
+    border: 1px solid var(--green3);
+    color: var(--green);
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 3px 8px;
+    pointer-events: none;
+    display: none;
+    z-index: 500;
+    letter-spacing: 1px;
+  }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div id="header">
+  <div>
+    <h1>WIREVIS MAPPER</h1>
+    <div class="sub">CONNECTOR ANNOTATION SYSTEM v1.0</div>
+  </div>
+  <label id="upload-btn-label" for="image-upload">⬆ LOAD IMAGE</label>
+  <input type="file" id="image-upload" accept="image/*" style="display:none">
+  <button class="hbtn amber" id="export-img-btn">⊡ EXPORT IMAGE</button>
+  <button class="hbtn primary" id="export-wv-btn">↓ EXPORT WIREVIS</button>
+  <div class="spacer"></div>
+  <div style="color:var(--text3);font-size:10px;letter-spacing:1px;">
+    DRAG=MOVE &nbsp;|&nbsp; RCLICK=ROTATE &nbsp;|&nbsp; DBLCLICK=EDIT
+  </div>
+</div>
+
+<!-- MAIN -->
+<div id="main">
+
+  <!-- LEFT PANEL -->
+  <div id="left-panel">
+    <div class="panel-header"><span class="dot"></span>ADD CONNECTOR</div>
+    <div id="add-form">
+      <div class="field-row">
+        <span class="field-label">NAME</span>
+        <input class="field-input" id="conn-name" type="text" placeholder="J1" maxlength="24">
+      </div>
+      <div class="field-row">
+        <span class="field-label">PINS</span>
+        <input class="field-input spinner-input" id="conn-pins" type="number" min="1" max="64" value="4">
+      </div>
+      <div style="color:var(--text3);font-size:10px;letter-spacing:1px;padding:2px 0;">PIN LABELS</div>
+      <div id="pin-labels-area"></div>
+      <button id="add-connector-btn">+ ADD CONNECTOR</button>
+    </div>
+    <div class="panel-header"><span class="dot"></span>CONNECTOR LIST</div>
+    <div id="connector-list"></div>
+  </div>
+
+  <!-- CANVAS -->
+  <div id="canvas-wrap">
+    <div id="canvas-area">
+      <canvas id="image-canvas"></canvas>
+      <canvas id="overlay-canvas"></canvas>
+    </div>
+    <div id="drop-zone">
+      <div class="dz-icon">⬡</div>
+      <div class="dz-text">UPLOAD OR DROP IMAGE TO BEGIN</div>
+    </div>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div id="right-panel">
+    <div class="panel-header"><span class="dot"></span>WIREVIS OUTPUT</div>
+    <textarea id="wirevis-output" readonly spellcheck="false"></textarea>
+  </div>
+
+</div>
+
+<!-- STATUS BAR -->
+<div id="status-bar">
+  <span>CONNECTORS: <span class="status-val" id="st-count">0</span></span>
+  <span class="sep">|</span>
+  <span>SELECTED: <span class="status-val" id="st-sel">—</span></span>
+  <span class="sep">|</span>
+  <span>IMG: <span class="status-val" id="st-img">NO IMAGE</span></span>
+  <span class="sep">|</span>
+  <span>CURSOR: <span class="status-val" id="st-cursor">0, 0</span></span>
+  <span class="sep">|</span>
+  <span>NATIVE: <span class="status-val" id="st-native">0, 0</span></span>
+</div>
+
+<!-- EDIT MODAL -->
+<div id="edit-modal">
+  <div id="edit-modal-inner">
+    <h2>EDIT CONNECTOR</h2>
+    <div class="field-row">
+      <span class="field-label">NAME</span>
+      <input class="field-input" id="edit-name" type="text" maxlength="24">
+    </div>
+    <div style="color:var(--text3);font-size:10px;letter-spacing:1px;">PIN LABELS</div>
+    <div id="edit-pin-labels"></div>
+    <div class="modal-btn-row">
+      <button class="hbtn red" id="edit-cancel-btn">CANCEL</button>
+      <button class="hbtn primary" id="edit-save-btn">SAVE</button>
+    </div>
+  </div>
+</div>
+
+<div id="tooltip"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════════════════
+let nativeW = 0, nativeH = 0;
+let scale = 1;
+let imgOffX = 0, imgOffY = 0;
+let imgLoaded = false;
+
+const connectors = []; // { id, name, pins, labels[], x, y, rot }
+let selectedId = null;
+let nextId = 1;
+
+// Interaction state
+let dragging = false;
+let dragConnId = null;
+let dragOffX = 0, dragOffY = 0;
+let rotating = false;
+let rotConnId = null;
+let rotStartAngle = 0;
+let rotStartRot = 0;
+let rotCX = 0, rotCY = 0;
+
+// ═══════════════════════════════════════════════════════════
+//  CANVAS SETUP
+// ═══════════════════════════════════════════════════════════
+const wrapEl = document.getElementById('canvas-wrap');
+const areaEl = document.getElementById('canvas-area');
+const imgCanvas = document.getElementById('image-canvas');
+const ovCanvas = document.getElementById('overlay-canvas');
+const imgCtx = imgCanvas.getContext('2d');
+const ovCtx = ovCanvas.getContext('2d');
+let imgElement = null;
+
+function resizeCanvases() {
+  const w = wrapEl.clientWidth;
+  const h = wrapEl.clientHeight;
+  imgCanvas.width = w; imgCanvas.height = h;
+  ovCanvas.width = w; ovCanvas.height = h;
+  areaEl.style.width = w + 'px';
+  areaEl.style.height = h + 'px';
+  if (imgElement) layoutImage();
+  drawAll();
+}
+
+function layoutImage() {
+  if (!imgElement) return;
+  const cw = imgCanvas.width, ch = imgCanvas.height;
+  const ir = imgElement.naturalWidth / imgElement.naturalHeight;
+  const cr = cw / ch;
+  if (ir > cr) { scale = cw / imgElement.naturalWidth; }
+  else          { scale = ch / imgElement.naturalHeight; }
+  imgOffX = (cw - imgElement.naturalWidth * scale) / 2;
+  imgOffY = (ch - imgElement.naturalHeight * scale) / 2;
+  nativeW = imgElement.naturalWidth;
+  nativeH = imgElement.naturalHeight;
+  document.getElementById('st-img').textContent = `${nativeW}×${nativeH}`;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  DRAWING
+// ═══════════════════════════════════════════════════════════
+const PIN_H = 24;
+const PIN_W_BASE = 36;
+const LABEL_PAD = 4;
+const FONT_PIN = '10px "Share Tech Mono"';
+const FONT_NAME = 'bold 11px "Share Tech Mono"';
+
+function pinWidth(label) {
+  ovCtx.font = FONT_PIN;
+  return Math.max(PIN_W_BASE, ovCtx.measureText(label).width + LABEL_PAD * 2 + 2);
+}
+
+function connectorBounds(conn) {
+  // Returns { totalW, pinWidths[] }
+  let pinWidths = conn.labels.map((l, i) => pinWidth(l || `P${i+1}`));
+  let totalW = pinWidths.reduce((a, b) => a + b, 0);
+  let nameW = (() => { ovCtx.font = FONT_NAME; return ovCtx.measureText(conn.name).width + LABEL_PAD * 2; })();
+  totalW = Math.max(totalW, nameW);
+  return { totalW, pinWidths };
+}
+
+function drawConnector(ctx, conn, screenX, screenY, rot, isSelected) {
+  ctx.save();
+  ctx.translate(screenX, screenY);
+  ctx.rotate(rot * Math.PI / 180);
+
+  const { totalW, pinWidths } = connectorBounds(conn);
+  const headerH = 16;
+  const totalH = headerH + PIN_H;
+
+  // Shadow glow if selected
+  if (isSelected) {
+    ctx.shadowColor = '#00ff41';
+    ctx.shadowBlur = 12;
+  }
+
+  // Background body
+  ctx.fillStyle = 'rgba(10,20,10,0.92)';
+  ctx.strokeStyle = isSelected ? '#00ff41' : '#1e5a1e';
+  ctx.lineWidth = isSelected ? 1.5 : 1;
+  ctx.fillRect(-totalW/2, -totalH/2, totalW, totalH);
+  ctx.strokeRect(-totalW/2, -totalH/2, totalW, totalH);
+
+  // Header bar
+  ctx.fillStyle = isSelected ? '#003308' : '#001a04';
+  ctx.fillRect(-totalW/2, -totalH/2, totalW, headerH);
+  ctx.strokeStyle = isSelected ? '#00ff41' : '#1e5a1e';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(-totalW/2, -totalH/2 + headerH);
+  ctx.lineTo( totalW/2, -totalH/2 + headerH);
+  ctx.stroke();
+
+  // Connector name
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = isSelected ? '#00ff41' : '#00cc33';
+  ctx.font = FONT_NAME;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(conn.name, 0, -totalH/2 + headerH/2);
+
+  // Pin cells
+  let x = -totalW/2;
+  const pinsTop = -totalH/2 + headerH;
+  for (let i = 0; i < conn.labels.length; i++) {
+    const pw = pinWidths[i];
+    const label = conn.labels[i] || `P${i+1}`;
+
+    // Pin box
+    ctx.strokeStyle = '#1e5a1e';
+    ctx.lineWidth = i === 0 ? 2 : 1; // Bold first pin
+    ctx.strokeStyle = i === 0 ? '#00cc33' : '#1e4a1e';
+    ctx.fillStyle = i % 2 === 0 ? 'rgba(0,30,10,0.6)' : 'rgba(0,20,8,0.4)';
+    ctx.fillRect(x, pinsTop, pw, PIN_H);
+    ctx.strokeRect(x, pinsTop, pw, PIN_H);
+
+    // Pin number (tiny, top)
+    ctx.fillStyle = '#3a7a3a';
+    ctx.font = '8px "Share Tech Mono"';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    ctx.fillText(`${i+1}`, x + pw/2, pinsTop + 2);
+
+    // Pin label
+    ctx.fillStyle = '#70cc70';
+    ctx.font = FONT_PIN;
+    ctx.textBaseline = 'middle';
+    ctx.fillText(label.length > 7 ? label.slice(0,7) : label, x + pw/2, pinsTop + PIN_H/2 + 4);
+
+    x += pw;
+  }
+
+  // Selection handles
+  if (isSelected) {
+    ctx.fillStyle = '#00ff41';
+    const corners = [
+      [-totalW/2, -totalH/2], [totalW/2, -totalH/2],
+      [-totalW/2, totalH/2],  [totalW/2, totalH/2]
+    ];
+    corners.forEach(([cx, cy]) => {
+      ctx.beginPath();
+      ctx.arc(cx, cy, 3, 0, Math.PI*2);
+      ctx.fill();
+    });
+  }
+
+  ctx.restore();
+}
+
+function drawAll() {
+  imgCtx.clearRect(0, 0, imgCanvas.width, imgCanvas.height);
+  ovCtx.clearRect(0, 0, ovCanvas.width, ovCanvas.height);
+
+  if (imgElement) {
+    imgCtx.drawImage(imgElement, imgOffX, imgOffY,
+      imgElement.naturalWidth * scale, imgElement.naturalHeight * scale);
+  }
+
+  connectors.forEach(conn => {
+    const sx = toScreenX(conn.x);
+    const sy = toScreenY(conn.y);
+    drawConnector(ovCtx, conn, sx, sy, conn.rot, conn.id === selectedId);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+//  COORDINATE TRANSFORMS
+// ═══════════════════════════════════════════════════════════
+function toScreenX(nx) { return imgOffX + nx * scale; }
+function toScreenY(ny) { return imgOffY + ny * scale; }
+function toNativeX(sx) { return (sx - imgOffX) / scale; }
+function toNativeY(sy) { return (sy - imgOffY) / scale; }
+
+function canvasPos(e) {
+  const r = ovCanvas.getBoundingClientRect();
+  return { x: e.clientX - r.left, y: e.clientY - r.top };
+}
+
+// ═══════════════════════════════════════════════════════════
+//  HIT TESTING
+// ═══════════════════════════════════════════════════════════
+function hitTest(sx, sy) {
+  for (let i = connectors.length - 1; i >= 0; i--) {
+    const conn = connectors[i];
+    const cx = toScreenX(conn.x);
+    const cy = toScreenY(conn.y);
+    const { totalW } = connectorBounds(conn);
+    const headerH = 16;
+    const totalH = headerH + PIN_H;
+
+    // Transform to connector local space
+    const dx = sx - cx, dy = sy - cy;
+    const rad = conn.rot * Math.PI / 180;
+    const lx = dx * Math.cos(-rad) - dy * Math.sin(-rad);
+    const ly = dx * Math.sin(-rad) + dy * Math.cos(-rad);
+
+    if (lx >= -totalW/2 && lx <= totalW/2 &&
+        ly >= -totalH/2 && ly <= totalH/2) {
+      return conn;
+    }
+  }
+  return null;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  INTERACTION
+// ═══════════════════════════════════════════════════════════
+ovCanvas.addEventListener('contextmenu', e => e.preventDefault());
+
+ovCanvas.addEventListener('mousedown', e => {
+  const { x, y } = canvasPos(e);
+  const hit = hitTest(x, y);
+
+  if (e.button === 0) {
+    if (hit) {
+      selectedId = hit.id;
+      dragging = true;
+      dragConnId = hit.id;
+      dragOffX = x - toScreenX(hit.x);
+      dragOffY = y - toScreenY(hit.y);
+      updateList();
+      drawAll();
+    } else {
+      selectedId = null;
+      updateList();
+      drawAll();
+    }
+  } else if (e.button === 2) {
+    if (hit) {
+      selectedId = hit.id;
+      rotating = true;
+      rotConnId = hit.id;
+      rotCX = toScreenX(hit.x);
+      rotCY = toScreenY(hit.y);
+      rotStartAngle = Math.atan2(y - rotCY, x - rotCX) * 180 / Math.PI;
+      rotStartRot = hit.rot;
+      updateList();
+      drawAll();
+    }
+  }
+  document.getElementById('st-sel').textContent = hit ? hit.name : '—';
+});
+
+ovCanvas.addEventListener('mousemove', e => {
+  const { x, y } = canvasPos(e);
+  const nx = Math.round(toNativeX(x));
+  const ny = Math.round(toNativeY(y));
+  document.getElementById('st-cursor').textContent = `${x|0}, ${y|0}`;
+  document.getElementById('st-native').textContent = `${nx}, ${ny}`;
+
+  if (dragging) {
+    const conn = connectors.find(c => c.id === dragConnId);
+    if (conn) {
+      conn.x = toNativeX(x - dragOffX);
+      conn.y = toNativeY(y - dragOffY);
+      drawAll();
+      updateWireVis();
+    }
+  } else if (rotating) {
+    const conn = connectors.find(c => c.id === rotConnId);
+    if (conn) {
+      const angle = Math.atan2(y - rotCY, x - rotCX) * 180 / Math.PI;
+      let newRot = rotStartRot + (angle - rotStartAngle);
+      // Snap to 15° if shift held
+      if (e.shiftKey) newRot = Math.round(newRot / 15) * 15;
+      conn.rot = newRot;
+      drawAll();
+      updateWireVis();
+    }
+  }
+
+  // Tooltip
+  const hit = (!dragging && !rotating) ? hitTest(x, y) : null;
+  const tt = document.getElementById('tooltip');
+  if (hit) {
+    tt.style.display = 'block';
+    tt.style.left = (e.clientX + 12) + 'px';
+    tt.style.top = (e.clientY + 4) + 'px';
+    tt.textContent = `${hit.name} — ${hit.pins}P — ROT:${hit.rot.toFixed(1)}°`;
+  } else {
+    tt.style.display = 'none';
+  }
+});
+
+ovCanvas.addEventListener('mouseup', e => {
+  if (dragging || rotating) {
+    dragging = false; rotating = false;
+    updateWireVis();
+  }
+});
+
+ovCanvas.addEventListener('dblclick', e => {
+  const { x, y } = canvasPos(e);
+  const hit = hitTest(x, y);
+  if (hit) openEditModal(hit);
+});
+
+// ═══════════════════════════════════════════════════════════
+//  IMAGE UPLOAD
+// ═══════════════════════════════════════════════════════════
+document.getElementById('image-upload').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  loadImageFile(file);
+});
+
+// Drag-drop
+wrapEl.addEventListener('dragover', e => { e.preventDefault(); });
+wrapEl.addEventListener('drop', e => {
+  e.preventDefault();
+  const file = e.dataTransfer.files[0];
+  if (file && file.type.startsWith('image/')) loadImageFile(file);
+});
+
+function loadImageFile(file) {
+  const url = URL.createObjectURL(file);
+  const img = new Image();
+  img.onload = () => {
+    imgElement = img;
+    imgLoaded = true;
+    layoutImage();
+    document.getElementById('drop-zone').style.display = 'none';
+    drawAll();
+  };
+  img.src = url;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  PIN LABEL INPUTS
+// ═══════════════════════════════════════════════════════════
+function rebuildPinInputs() {
+  const count = parseInt(document.getElementById('conn-pins').value) || 1;
+  const area = document.getElementById('pin-labels-area');
+  const existing = Array.from(area.querySelectorAll('.pin-label-input')).map(i => i.value);
+  area.innerHTML = '';
+  for (let i = 0; i < count; i++) {
+    const row = document.createElement('div');
+    row.className = 'pin-label-row';
+    row.innerHTML = `<span class="pin-num">${i+1}</span>
+      <input class="pin-label-input" type="text" placeholder="PIN${i+1}" maxlength="16" value="${existing[i]||''}">`;
+    area.appendChild(row);
+  }
+}
+
+document.getElementById('conn-pins').addEventListener('input', rebuildPinInputs);
+rebuildPinInputs();
+
+// ═══════════════════════════════════════════════════════════
+//  ADD CONNECTOR
+// ═══════════════════════════════════════════════════════════
+document.getElementById('add-connector-btn').addEventListener('click', () => {
+  const name = document.getElementById('conn-name').value.trim() || `J${nextId}`;
+  const pins = Math.max(1, Math.min(64, parseInt(document.getElementById('conn-pins').value) || 1));
+  const labels = Array.from(document.querySelectorAll('#pin-labels-area .pin-label-input'))
+    .map((el, i) => el.value.trim() || `P${i+1}`);
+
+  // Default placement: center of image or canvas
+  let px = nativeW ? nativeW / 2 : toNativeX(ovCanvas.width / 2);
+  let py = nativeH ? nativeH / 4 : toNativeY(ovCanvas.height / 4);
+
+  const conn = { id: nextId++, name, pins, labels, x: px, y: py, rot: 0 };
+  connectors.push(conn);
+  selectedId = conn.id;
+  updateList();
+  drawAll();
+  updateWireVis();
+  document.getElementById('st-count').textContent = connectors.length;
+  // Reset name field
+  document.getElementById('conn-name').value = '';
+});
+
+// ═══════════════════════════════════════════════════════════
+//  CONNECTOR LIST
+// ═══════════════════════════════════════════════════════════
+function updateList() {
+  const listEl = document.getElementById('connector-list');
+  listEl.innerHTML = '';
+  connectors.forEach(conn => {
+    const item = document.createElement('div');
+    item.className = 'conn-item' + (conn.id === selectedId ? ' selected' : '');
+    item.innerHTML = `
+      <span class="conn-item-name">${conn.name}</span>
+      <span class="conn-item-pins">${conn.pins}P</span>
+      <button class="conn-del" data-id="${conn.id}" title="Delete">✕</button>`;
+    item.addEventListener('click', () => {
+      selectedId = conn.id;
+      updateList();
+      drawAll();
+      document.getElementById('st-sel').textContent = conn.name;
+    });
+    listEl.appendChild(item);
+  });
+  listEl.querySelectorAll('.conn-del').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const id = parseInt(btn.dataset.id);
+      const idx = connectors.findIndex(c => c.id === id);
+      if (idx !== -1) connectors.splice(idx, 1);
+      if (selectedId === id) selectedId = null;
+      updateList();
+      drawAll();
+      updateWireVis();
+      document.getElementById('st-count').textContent = connectors.length;
+      document.getElementById('st-sel').textContent = '—';
+    });
+  });
+  document.getElementById('st-count').textContent = connectors.length;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  EDIT MODAL
+// ═══════════════════════════════════════════════════════════
+let editingId = null;
+
+function openEditModal(conn) {
+  editingId = conn.id;
+  document.getElementById('edit-name').value = conn.name;
+  const area = document.getElementById('edit-pin-labels');
+  area.innerHTML = '';
+  conn.labels.forEach((lbl, i) => {
+    const row = document.createElement('div');
+    row.className = 'pin-label-row';
+    row.innerHTML = `<span class="pin-num">${i+1}</span>
+      <input class="pin-label-input" type="text" placeholder="PIN${i+1}" maxlength="16" value="${lbl}">`;
+    area.appendChild(row);
+  });
+  document.getElementById('edit-modal').classList.add('show');
+}
+
+document.getElementById('edit-save-btn').addEventListener('click', () => {
+  const conn = connectors.find(c => c.id === editingId);
+  if (conn) {
+    conn.name = document.getElementById('edit-name').value.trim() || conn.name;
+    conn.labels = Array.from(document.querySelectorAll('#edit-pin-labels .pin-label-input'))
+      .map((el, i) => el.value.trim() || `P${i+1}`);
+    updateList();
+    drawAll();
+    updateWireVis();
+  }
+  document.getElementById('edit-modal').classList.remove('show');
+});
+
+document.getElementById('edit-cancel-btn').addEventListener('click', () => {
+  document.getElementById('edit-modal').classList.remove('show');
+});
+
+document.getElementById('edit-modal').addEventListener('click', e => {
+  if (e.target === document.getElementById('edit-modal'))
+    document.getElementById('edit-modal').classList.remove('show');
+});
+
+// ═══════════════════════════════════════════════════════════
+//  WIREVIS OUTPUT
+// ═══════════════════════════════════════════════════════════
+function updateWireVis() {
+  if (connectors.length === 0) {
+    document.getElementById('wirevis-output').value = '# No connectors defined.\n';
+    return;
+  }
+
+  const lines = ['connectors:'];
+  connectors.forEach(conn => {
+    lines.push(`  ${conn.name}:`);
+    lines.push(`    pinlabels: [${conn.labels.map(l => `"${l}"`).join(', ')}]`);
+    const nx = Math.round(conn.x);
+    const ny = Math.round(conn.y);
+    const rot = parseFloat(conn.rot.toFixed(2));
+    lines.push(`    notes: "pos=(${nx},${ny}) rot=${rot}deg"`);
+  });
+
+  document.getElementById('wirevis-output').value = lines.join('\n') + '\n';
+}
+
+// ═══════════════════════════════════════════════════════════
+//  EXPORT IMAGE
+// ═══════════════════════════════════════════════════════════
+document.getElementById('export-img-btn').addEventListener('click', () => {
+  if (!imgElement) { alert('No image loaded.'); return; }
+
+  // Create export canvas at native image resolution
+  const expCanvas = document.createElement('canvas');
+  expCanvas.width = nativeW;
+  expCanvas.height = nativeH;
+  const expCtx = expCanvas.getContext('2d');
+
+  // Draw the image at full native resolution
+  expCtx.drawImage(imgElement, 0, 0, nativeW, nativeH);
+
+  // The connectors are positioned in native pixel coordinates (conn.x, conn.y)
+  // but their visual geometry (pin widths, header height, fonts) was sized for
+  // the *screen* view where the image is scaled down by `scale`.
+  // To make the exported overlays appear the same relative size as on screen,
+  // we must scale ALL connector geometry up by 1/scale.
+  const exportScale = 1 / scale;
+
+  connectors.forEach(conn => {
+    expCtx.save();
+    // Translate to native position, then apply the inverse-scale so geometry
+    // drawn in screen-pixel units ends up the right size in native pixels.
+    expCtx.translate(conn.x, conn.y);
+    expCtx.rotate(conn.rot * Math.PI / 180);
+    expCtx.scale(exportScale, exportScale);
+
+    // From here on, all coordinates are in screen-pixel units (same as drawConnector).
+    // Reuse a temp canvas for text measurement at screen pixel sizes.
+    const tmpCtx = document.createElement('canvas').getContext('2d');
+    function pinW(label) {
+      tmpCtx.font = FONT_PIN;
+      return Math.max(PIN_W_BASE, tmpCtx.measureText(label).width + LABEL_PAD * 2 + 2);
+    }
+
+    const pinWidths = conn.labels.map((l, i) => pinW(l || `P${i+1}`));
+    let totalW = pinWidths.reduce((a, b) => a + b, 0);
+    tmpCtx.font = FONT_NAME;
+    const nameW = tmpCtx.measureText(conn.name).width + LABEL_PAD * 2;
+    totalW = Math.max(totalW, nameW);
+    const headerH = 16, totalH = headerH + PIN_H;
+
+    // Body
+    expCtx.fillStyle = 'rgba(10,20,10,0.92)';
+    expCtx.strokeStyle = '#1e5a1e';
+    expCtx.lineWidth = 1;
+    expCtx.fillRect(-totalW/2, -totalH/2, totalW, totalH);
+    expCtx.strokeRect(-totalW/2, -totalH/2, totalW, totalH);
+
+    // Header bar
+    expCtx.fillStyle = '#001a04';
+    expCtx.fillRect(-totalW/2, -totalH/2, totalW, headerH);
+    expCtx.strokeStyle = '#1e5a1e';
+    expCtx.lineWidth = 1;
+    expCtx.beginPath();
+    expCtx.moveTo(-totalW/2, -totalH/2 + headerH);
+    expCtx.lineTo( totalW/2, -totalH/2 + headerH);
+    expCtx.stroke();
+
+    // Connector name
+    expCtx.fillStyle = '#00cc33';
+    expCtx.font = FONT_NAME;
+    expCtx.textAlign = 'center';
+    expCtx.textBaseline = 'middle';
+    expCtx.fillText(conn.name, 0, -totalH/2 + headerH/2);
+
+    // Pin cells
+    let x = -totalW/2;
+    const pinsTop = -totalH/2 + headerH;
+    for (let i = 0; i < conn.labels.length; i++) {
+      const pw = pinWidths[i];
+      const label = conn.labels[i] || `P${i+1}`;
+
+      expCtx.strokeStyle = i === 0 ? '#00cc33' : '#1e4a1e';
+      expCtx.lineWidth = i === 0 ? 2 : 1;
+      expCtx.fillStyle = i % 2 === 0 ? 'rgba(0,30,10,0.6)' : 'rgba(0,20,8,0.4)';
+      expCtx.fillRect(x, pinsTop, pw, PIN_H);
+      expCtx.strokeRect(x, pinsTop, pw, PIN_H);
+
+      // Pin number
+      expCtx.fillStyle = '#3a7a3a';
+      expCtx.font = '8px "Share Tech Mono"';
+      expCtx.textAlign = 'center';
+      expCtx.textBaseline = 'top';
+      expCtx.fillText(`${i+1}`, x + pw/2, pinsTop + 2);
+
+      // Pin label
+      expCtx.fillStyle = '#70cc70';
+      expCtx.font = FONT_PIN;
+      expCtx.textBaseline = 'middle';
+      expCtx.fillText(label.length > 7 ? label.slice(0,7) : label, x + pw/2, pinsTop + PIN_H/2 + 4);
+
+      x += pw;
+    }
+
+    expCtx.restore();
+  });
+
+  const link = document.createElement('a');
+  link.download = 'wirevis_annotated.png';
+  link.href = expCanvas.toDataURL('image/png');
+  link.click();
+});
+
+// ═══════════════════════════════════════════════════════════
+//  EXPORT WIREVIS
+// ═══════════════════════════════════════════════════════════
+document.getElementById('export-wv-btn').addEventListener('click', () => {
+  const text = document.getElementById('wirevis-output').value;
+  const blob = new Blob([text], { type: 'text/plain' });
+  const link = document.createElement('a');
+  link.download = 'connectors.wirevis';
+  link.href = URL.createObjectURL(blob);
+  link.click();
+});
+
+// ═══════════════════════════════════════════════════════════
+//  RESIZE
+// ═══════════════════════════════════════════════════════════
+window.addEventListener('resize', () => { resizeCanvases(); });
+resizeCanvases();
+updateWireVis();
+</script>
+</body>
+</html>
