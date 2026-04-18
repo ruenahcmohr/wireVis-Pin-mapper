@@ -37,5 +37,5 @@ workflow
 - export the wirevis text, use this to build your inter-module wiring diagram. 
 
 
-![image](example1/wirevis_annotated.png)
+![image](wirevis_annotated.png)
 ![image](textblock.png)
