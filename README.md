@@ -1,41 +1,90 @@
-# WireVis-PCB pin mapper
-One-file webpage to generate image overlays and wireVis fragments for PCBs
+# wireVis Pin Mapper
 
-![image](screenshot.png)
+A single-file, browser-based tool for annotating PCB images with connector overlays and generating the `connectors:` section of a [wireVis](https://github.com/ruenahcmohr) wiring diagram file.
 
-The included prompt was compiled with claude.
-The goal of this tool is to build connection documentation for something like a robot that 
-consists of multiple circuit modules. As well as helping generate the pinout graphics, it
-generates the connectors section of a wireVis file that you can build the inter-circuit
-charts with.
+![screenshot](screenshot.png)
 
-The prompt is slightly modfied as the first pass contained a bug where the overlays in the 
-export were not properly scaled. There was an intent to be able to use the text block to 
-reload the graphVis data and reconstruct the overlays. I may try to modify this in the future
-but as it stands, I think the write-only satisfies my needs.
+---
 
-Please feel free to take and modify this project, I only put about 10 minutes into building 
-the prompt. 
+## Overview
 
+When documenting a robot or embedded system built from multiple circuit modules, you need two things: a visual reference showing where each connector lives on a board, and a machine-readable description of what each pin does. This tool produces both at the same time.
 
-workflow
----------
+You load a photo or render of your PCB, place labeled connector strips directly over the image, and export either an annotated PNG (for visual reference) or a `.wirevis` text fragment (to drop into your inter-module wiring diagram).
 
-- load a trimmed, clean image of your PCB/module into the page
+No installation required — open `wirevis_mapper-V2.html` in any modern browser and go.
 
-- on the left side, dial the 'pins' to the count of a connector
+---
 
-- enter the names of the pins on the connector
+## Workflow
 
-- click 'add connector' 
+1. **Load your image** — click **LOAD IMAGE** or drag and drop a photo or render of your PCB onto the canvas. The image is automatically scaled to fit the available space.
 
-- use a left click to position the label overlays and a right click to rotate them (haha! you need a mouse! :P )
- I'm sorry, there is no scale option. 
- 
-- export the image, keep as connector loations ref.
+2. **Define a connector** — in the left panel, set the connector name (e.g. `J1`), dial in the pin count with the spinner, and fill in a label for each pin.
 
-- export the wirevis text, use this to build your inter-module wiring diagram. 
+3. **Add it to the canvas** — click **ADD CONNECTOR**. The connector strip appears over the image, centred by default.
 
+4. **Position and orient** — drag the strip with the **left mouse button** to move it; drag with the **right mouse button** to rotate it. Hold **Shift** while rotating to snap to 15° increments. Double-click a connector to rename it or edit its pin labels.
 
-![image](wirevis_annotated.png)
-![image](textblock.png)
+5. **Export the image** — click **EXPORT IMAGE** to download a PNG of the original image with all connector overlays composited at native resolution and correctly scaled.
+
+6. **Export the wireVis fragment** — click **EXPORT WIREVIS** to download a `.wirevis` text file containing the `connectors:` section, ready to paste into your wiring diagram.
+
+> **Note:** a mouse is required for rotate. There is currently no scale option for the connector strips.
+
+---
+
+## Output format
+
+The exported wireVis fragment covers only the `connectors:` section. Each connector entry contains a `pinlabels` list and a `notes` field recording its position and rotation in native image pixel coordinates (not the scaled screen view).
+
+```yaml
+connectors:
+  J1:
+    pinlabels: ["GND", "3V3", "SDA", "SCL"]
+    notes: "pos=(412,830) rot=0.0deg"
+  J2:
+    pinlabels: ["VIN", "GND", "TX", "RX", "CTS", "RTS"]
+    notes: "pos=(215,1044) rot=90.0deg"
+```
+
+Use this fragment as the starting point for building a full wireVis inter-module wiring diagram.
+
+---
+
+## Example output
+
+Annotated image export:
+
+![annotated example](wirevis_annotated.png)
+
+wireVis text block:
+
+![text block example](textblock.png)
+
+---
+
+## Files
+
+| File | Description |
+|---|---|
+| `wirevis_mapper-V2.html` | The tool — open this in a browser |
+| `wirevis_mapper_dd.txt` | The original design prompt used to generate the tool |
+| `screenshot.png` | UI screenshot |
+| `wirevis_annotated.png` | Example annotated image export |
+| `textblock.png` | Example wireVis text output |
+| `example1/` | Example project files |
+
+---
+
+## Notes & known limitations
+
+- The wireVis output is **write-only** — the tool does not currently parse an existing `.wirevis` file to reconstruct a previous session. Reload support may be added in a future revision.
+- Connector strip size is fixed; there is no scale control.
+- Coordinates in the `notes` field are always in **native image pixels**, regardless of how the image is scaled on screen.
+
+---
+
+## Acknowledgements
+
+The tool was generated using Claude (Anthropic) from the design prompt in `wirevis_mapper_dd.txt`, with a subsequent fix for export scaling. Feel free to take and modify this project — only about 10 minutes went into writing the prompt.
